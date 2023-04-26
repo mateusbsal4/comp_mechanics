@@ -12,11 +12,11 @@ import matplotlib.pyplot as plt
 import math
 
 ##Parameter definitions (SI)
-M =1783
-V = 50/3.6  #m/s
+M = 1783
+V = 30/3.6  #m/s
 k1 = k2 = 2.8 * 10**7
-c1 = c2 = 5 * 10**4
-a = 1.22
+c1 = c2 = 3 * 10**4
+a = 1.23
 b = 1.5
 Ic = 4000
 e = 0.75
@@ -55,8 +55,8 @@ def F(t, Y):
   v = Y[3]
   K[0] = u 
   K[1] = v 
-  K[2] = (-(k1+k2)*x+(k1*a-k2*b)*theta-(c1+c2)*u+(c1*a-c2*b)*v+k1*d1(t)+k2*d2(t)+c1*d1_dot(t)+c2*d2_dot(t)+Fn*np.sin(w_e*t))/M     #aqui vou esperar vc conferir antes de digitar tudo kk
-  K[3] = ((k1*a-k2*b)*x-(k1*a**2+k2*b**2)*theta+(c1*a-c2*b)*u-(c1*a**2+c2*b**2)*v-k1*a*d1(t)-k2*b*d2(t)-c1*a*d1_dot(t)-c2*b*d2_dot(t)-Fn*(e*np.sin(w_e*t)+f*np.cos(w_e*t)))/Ic
+  K[2] = (-(k1+k2)*x+(k1*a-k2*b)*theta-(c1+c2)*u+(c1*a-c2*b)*v+k1*d1(t)+k2*d2(t)+c1*d1_dot(t)+c2*d2_dot(t)+Fn*np.sin(w_e*t))/M     
+  K[3] = ((k1*a-k2*b)*x-(k1*a**2+k2*b**2)*theta+(c1*a-c2*b)*u-(c1*a**2+c2*b**2)*v-k1*a*d1(t)+k2*b*d2(t)-c1*a*d1_dot(t)+c2*b*d2_dot(t)-Fn*(e*np.sin(w_e*t)+f*np.cos(w_e*t)))/Ic
   return K
 
 def rk4_solver(Y0, t0, tf, h):
@@ -91,15 +91,24 @@ def main():
 
 
     Z = np.transpose(Y)
-    fig, ax = plt.subplots(figsize=(10,5))
+    fig, ax = plt.subplots(figsize=(10,10))
     ax.plot(t_sampled, 100*Z[0], label=r'$x(t) \times 10^2$')  
     ax.plot(t_sampled, Z[2], label=r'$\dot{x}(t)$')  
     ax.set_xlabel('t')  
     ax.set_ylabel('f(t)')  
     ax.set_title("Evolução temporal em x")  
     ax.legend() 
+    
+    fig, ax = plt.subplots(figsize=(10,10))
+    ax.plot(t_sampled, 100*Z[1], label=r'$\theta(t) \times 10^2$')  
+    ax.plot(t_sampled, Z[3], label=r'$\dot{\theta}(t)$')  
+    ax.set_xlabel('t')  
+    ax.set_ylabel('f(t)')  
+    ax.set_title("Evolução temporal em theta")  
+    ax.legend() 
+    
+
     plt.show()
-    return
 
 if __name__ == "__main__":
     main()
