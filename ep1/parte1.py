@@ -13,10 +13,7 @@ import math
 
 ##Parameter definitions (SI)
 M = 1783
-V = 30/3.6  #m/s
-k1 = k2 = 2.8 * 10**7
-c1 = c2 = 3 * 10**4
-a = 1.23
+a = 1.22
 b = 1.5
 Ic = 4000
 e = 0.75
@@ -25,29 +22,34 @@ A = 0.06
 f = 0.35
 f_e = 35 #2100/60
 m_e = 20
-w_e = 2*(np.pi)*f_e
-w = 2*np.pi*(V/L)    
+w_e = 2*(np.pi)*f_e   
 r = 0.045
 Fn = m_e*(w_e**2)*r
 
-def d1(t):
+
+
+def d1(t, V):
+  w = 2*np.pi*(V/L)  
   if t>2:
     return 0
   return A*(1-np.cos(w*t))
-def d2(t):
+def d2(t, V):
+  w = 2*np.pi*(V/L)  
   if t>2:
     return 0
   return A*(1+np.cos(w*t))
-def d1_dot(t):
+def d1_dot(t, V):
+  w = 2*np.pi*(V/L)  
   if t>2:
     return 0
   return A*w*np.sin(w*t)
-def d2_dot(t): 
+def d2_dot(t, V): 
+  w = 2*np.pi*(V/L)  
   if t>2:
     return 0
   return -A*w*np.sin(w*t)
 
-def F(t, Y):
+def F(t, Y, k1, k2, c1, c2, V):
   K = np.zeros(4)
   x = Y[0]
   theta = Y[1]
@@ -55,61 +57,95 @@ def F(t, Y):
   v = Y[3]
   K[0] = u 
   K[1] = v 
-  K[2] = (-(k1+k2)*x+(k1*a-k2*b)*theta-(c1+c2)*u+(c1*a-c2*b)*v+k1*d1(t)+k2*d2(t)+c1*d1_dot(t)+c2*d2_dot(t)+Fn*np.sin(w_e*t))/M     
-  K[3] = ((k1*a-k2*b)*x-(k1*a**2+k2*b**2)*theta+(c1*a-c2*b)*u-(c1*a**2+c2*b**2)*v-k1*a*d1(t)+k2*b*d2(t)-c1*a*d1_dot(t)+c2*b*d2_dot(t)-Fn*(e*np.sin(w_e*t)+f*np.cos(w_e*t)))/Ic
+  K[2] = (-(k1+k2)*x+(k1*a-k2*b)*theta-(c1+c2)*u+(c1*a-c2*b)*v+k1*d1(t, V)+k2*d2(t, V)+c1*d1_dot(t, V)+c2*d2_dot(t, V)+Fn*np.sin(w_e*t))/M     
+  K[3] = ((k1*a-k2*b)*x-(k1*a**2+k2*b**2)*theta+(c1*a-c2*b)*u-(c1*a**2+c2*b**2)*v-k1*a*d1(t, V)+k2*b*d2(t, V)-c1*a*d1_dot(t, V)+c2*b*d2_dot(t, V)-Fn*(e*np.sin(w_e*t)+f*np.cos(w_e*t)))/Ic
   return K
 
-def rk4_solver(Y0, t0, tf, h):
+def rk4_solver(Y0, t0, tf, h, k, c, V):
     iterations  = int(np.floor((tf-t0)/h))
     Y = Y0
-    #print("t0 ", t0)
-    #print("tf ", tf)
-    #print("iterations? ", iterations)
     for i in range(iterations):
         t_i = t0 + h*i
-        K1 = F(t_i, Y)
-        K2 = F(t_i + 0.5*h, Y + 0.5*h*K1)
-        K3 = F(t_i + 0.5*h, Y + 0.5*h*K2)
-        K4 = F(t_i+ h, Y + h*K3)
+        K1 = F(t_i, Y, k, k, c, c, V)
+        K2 = F(t_i + 0.5*h, Y + 0.5*h*K1, k, k, c, c, V)
+        K3 = F(t_i + 0.5*h, Y + 0.5*h*K2, k, k, c, c, V)
+        K4 = F(t_i+ h, Y + h*K3, k, k, c, c, V)
         Y += (h/6)*(K1+2*K2+2*K3+K4)
     return Y
 
 
+def rk4_plotter(h, V, k1, k2, c1, c2, scale_x, scale_theta, scale_xdot, scale_thetadot, scale_xddot, scale_thetaddot, Y0 = np.array([0, 0.09, 0, 0]), t0 = 0, tf = 4, n =1000):
+  t_sampled = np.linspace(t0, tf, n)
+  Y = np.zeros((n,4))
+  Y_dd = np.zeros((n, 2))
+  for i in range(n):
+    Y[i] = rk4_solver(Y0, t0, t_sampled[i], h, k1, c1, V/3.6) 
+    x = Y[i][0]
+    theta = Y[i][1]
+    u = Y[i][2]
+    v = Y[i][3]
+    Y_dd[i] = np.array([((-(k1+k2)*x+(k1*a-k2*b)*theta-(c1+c2)*u+(c1*a-c2*b)*v+k1*d1(t_sampled[i], V)+k2*d2(t_sampled[i], V)+c1*d1_dot(t_sampled[i], V)+c2*d2_dot(t_sampled[i], V)+Fn*np.sin(w_e*t_sampled[i]))/M), ((k1*a-k2*b)*x-(k1*a**2+k2*b**2)*theta+(c1*a-c2*b)*u-(c1*a**2+c2*b**2)*v-k1*a*d1(t_sampled[i], V)+k2*b*d2(t_sampled[i], V)-c1*a*d1_dot(t_sampled[i], V)+c2*b*d2_dot(t_sampled[i], V)-Fn*(e*np.sin(w_e*t_sampled[i])+f*np.cos(w_e*t_sampled[i])))/Ic])
+  Z = np.transpose(Y)
+  Y_dd = np.transpose(Y_dd)
+  fig, ax = plt.subplots(figsize=(10,10))
+  ax.plot(t_sampled, scale_x*Z[0], label=r'$x(t) \times$' + "{}".format(scale_x))  
+  ax.plot(t_sampled, scale_xdot*Z[2], label=r'$\dot{x}(t) \times$' + "{}".format(scale_xdot))  
+  ax.plot(t_sampled, scale_xddot*Y_dd[0], label=r'$\ddot{x}(t) \times$' + "{}".format(scale_xddot))  
+  ax.set_xlabel('t')  
+  ax.set_ylabel('f(t)')  
+  ax.set_title("Evolução temporal em x (h = {}, V = {}, k1=k2={}, c1=c2={})".format(h, V, k1, c1))  
+  ax.legend() 
+  
+  fig, ax = plt.subplots(figsize=(10,10))
+  ax.plot(t_sampled, scale_theta*Z[1], label=r'$\theta(t) \times$' + "{}".format(scale_theta))  
+  ax.plot(t_sampled, scale_thetadot*Z[3], label=r'$\dot{\theta}(t) \times$' + "{}".format(scale_thetadot))
+  ax.plot(t_sampled, scale_thetaddot*Y_dd[1], label=r'$\ddot{\theta}(t) \times$' + "{}".format(scale_thetaddot))   
+  ax.set_xlabel('t')  
+  ax.set_ylabel('f(t)')  
+  ax.set_title("Evolução temporal em theta (h = {}, V = {}, k1=k2={}, c1=c2={})".format(h, V, k1, c1))  
+  ax.legend() 
+
+
+  plt.show()
+
+
 def main():
-    Y0 = np.array([0, 0.09, 0, 0])
-    t0 = 0
-    tf = 4
-    h_s = 0.01    #small
+    h_s = 0.004    #small
     h_m = 0.04    #medium
     h_l = 0.4     #large
+    V1 = 50
+    V2 = 30
+    V3 = 70
+    k_a = 2.8 * 10**7
+    c_a = 3 * 10**4
+    k_b1  = 2*10**4
+    c_b1  = 10**3
+    k_b2  = 5*10**6
+    c_b2  = 5 * 10**4
+    k_b3  = 7*10**8
+    c_b3  = 2.5*10**5
+
+
+
     #Plotting
-    n = 1000
-    t_sampled = np.linspace(t0, tf, n) #array of instants to evaluate Y
-    Y = np.zeros((n,4))
-    for i in range(n):
-      Y[i] = rk4_solver(Y0, t0, t_sampled[i], h_s) 
+    #item a
+    #rk4_plotter(h_l, V1, k_a, k_a, c_a, c_a, 10, 10, 0.1, 0.1, 0.001, 0.001)
+    #rk4_plotter(h_m, V1, k_a, k_a, c_a, c_a, 10, 10, 0.1, 0.1, 0.001, 0.001)
+    rk4_plotter(h_s, V1, k_a, k_a, c_a, c_a, 10, 10, 0.1, 0.1, 0.001, 0.001)
 
+    ##item b
+    ##i)
+    #rk4_plotter(h_s, V2, k_a, k_a, c_a, c_a, 100, 100, 1, 1, 0.001, 0.001)
+    #rk4_plotter(h_s, V3, k_a, k_a, c_a, c_a, 10, 10, 1, 0.1, 0.001, 0.001)  
+    ##ii)
+    #rk4_plotter(h_s, V1, k_a, k_a, c_b1, c_b1, 10, 10, 0.1, 0.1, 0.001, 0.001)
+    #rk4_plotter(h_s, V1, k_a, k_a, c_b2, c_b2, 10, 10, 0.1, 0.1, 0.001, 0.001)
+    #rk4_plotter(h_s, V1, k_a, k_a, c_b3, c_b3, 10, 10, 0.1, 0.1, 0.001, 0.001)  
+    ##iii)
+    #rk4_plotter(h_s, V1, k_b1, k_b1, c_a, c_a, 10, 10, 0.1, 0.1, 0.001, 0.001)
+    #rk4_plotter(h_s, V1, k_b2, k_b2, c_a, c_a, 10, 10, 0.1, 0.1, 0.001, 0.001)
+    #rk4_plotter(h_s, V1, k_b3, k_b3, c_a, c_a, 10, 10, 0.1, 0.1, 0.001, 0.001)
 
-    Z = np.transpose(Y)
-    fig, ax = plt.subplots(figsize=(10,10))
-    ax.plot(t_sampled, 100*Z[0], label=r'$x(t) \times 10^2$')  
-    ax.plot(t_sampled, Z[2], label=r'$\dot{x}(t)$')  
-    ax.set_xlabel('t')  
-    ax.set_ylabel('f(t)')  
-    ax.set_title("Evolução temporal em x")  
-    ax.legend() 
-    
-    fig, ax = plt.subplots(figsize=(10,10))
-    ax.plot(t_sampled, 100*Z[1], label=r'$\theta(t) \times 10^2$')  
-    ax.plot(t_sampled, Z[3], label=r'$\dot{\theta}(t)$')  
-    ax.set_xlabel('t')  
-    ax.set_ylabel('f(t)')  
-    ax.set_title("Evolução temporal em theta")  
-    ax.legend() 
-    
-
-    plt.show()
 
 if __name__ == "__main__":
     main()
-
