@@ -15,11 +15,12 @@ def plot(delta, graph):
     fig = plt.figure()
     x = np.linspace(0, L + 2*d, int(2*L/delta))
     y = np.linspace(0, H, int(2*L/delta))
+    print(x)
     x_1, y_1 = np.meshgrid(x, y)
-    print("len x", len(x))
-    print("len y", len(y))
-    print("x ", x_1)
-    print("y ", y_1)
+    # print("len x", len(x))
+    # print("len y", len(y))
+    # print("x ", x_1)
+    # print("y ", y_1)
     ax = fig.add_subplot(111, projection='3d')
     
     # Plot the surface
@@ -36,6 +37,7 @@ def plot(delta, graph):
 
 def isInsideCar(x, y):
     return (y <= np.sqrt((L/2)**2 - (x-d-L/2)**2) + h) and y >= h
+    
 
 def mdf_psi(delta):
     n_lines = int(2*L/delta)        
@@ -48,18 +50,20 @@ def mdf_psi(delta):
             psi_velho = psi[i][j]
             #divisão por regioes especificas
             if (i == psi.shape[0]-1 and j == 0): # canto superior
-                psi[i][j] = 12
+                psi[i][j] = 1
             elif (i == 0 and j == 0): # canto inferior
-                psi[i][j] = 13
+                psi[i][j] = 1
             elif (j == 0): # Parede (esquerda) do dominio
                 psi[i][j] = 0.25*(2*psi[i][1]+psi[i+1][0]+psi[i-1][0])
             elif (i == psi.shape[0]-1): # Teto do dominio
                 if (j == psi.shape[1]-1): # Caso esteja no MEIO do dominio (CUIDADO)
-                    pass
-                psi[i][j] = 0.25*(psi[i][j+1]+psi[i][j-1]+2*psi[i-1][j]+V*delta)
+                    psi[i][j] = 0.25*(psi[i][j-1]+psi[i][j-1]+2*psi[i-1][j]+V*delta)
+                else:
+                    psi[i][j] = 0.25*(psi[i][j+1]+psi[i][j-1]+2*psi[i-1][j]+V*delta)
             elif (i == 0): # Chao do domínio
                 psi[i][j] = 0
-
+            elif isInsideCar(j*delta, i*delta):
+                psi[i][j] = 0
             elif isInsideCar((j+1)*delta, i*delta): #Contorno está a direita
                 n_center = n_columns - j -1                    #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
                 y_center = i*delta - h                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
@@ -69,7 +73,10 @@ def mdf_psi(delta):
                 n_center = n_columns - j -1 #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
                 y_center = (i-1)*delta - h   #altura do pto do contorno ate o centro
                 aij = delta - (np.sqrt(R**2-(n_center*delta)**2)-y_center)  #pitagoras
-                psi[i][j] = (aij/(2*(aij+1)))*(psi[i][j+1]+psi[i][j-1]+(2/aij)*psi[i+1][j])
+                if (j == psi.shape[1]-1): # Caso esteja no MEIO do dominio (CUIDADO)
+                    psi[i][j] = (aij/(2*(aij+1)))*(psi[i][j-1]+psi[i][j-1]+(2/aij)*psi[i+1][j])
+                else:
+                    psi[i][j] = (aij/(2*(aij+1)))*(psi[i][j+1]+psi[i][j-1]+(2/aij)*psi[i+1][j])
             elif isInsideCar((j+1)*delta, i*delta) and isInsideCar(j*delta, (i-1)*delta):       #contorno a direita e embaixo
                 n_center = n_columns - j -1                    #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
                 y_center = i*delta - h                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
@@ -80,14 +87,10 @@ def mdf_psi(delta):
                 psi[i][j] = ((aij*bij)/(aij+bij))*((psi[i][j-1]/(bij+1))+(psi[i+1][j])/(aij+1))
             else: # Parte central do dominio
                 if (j == psi.shape[1]-1): # Caso esteja no MEIO do dominio (CUIDADO)
-                    pass
-                psi[i][j] = 0.25*(psi[i+1][j]+psi[i-1][j]+psi[i][j+1]+psi[i][j-1])
+                    psi[i][j] = 0.25*(psi[i+1][j]+psi[i-1][j]+psi[i][j-1]+psi[i][j-1])
+                else:
+                    psi[i][j] = 0.25*(psi[i+1][j]+psi[i-1][j]+psi[i][j+1]+psi[i][j-1])
             psi[i][j] = lamb*psi[i][j]+(1-lamb)*psi_velho
-    print("First half", psi)
-    print("Second half", np.flip(psi, 1)[:, 1:])
-    print(np.concatenate((psi, np.flip(psi, 1)[:, 1:]), axis=1))
-    a = np.concatenate((psi, np.flip(psi, 1)[:, 1:]), axis=1)
-    print("SHAPE final", a.shape[0], a.shape[1])
     return np.concatenate((psi, np.flip(psi, 1)[:, 1:]), axis=1)
 
 def mdf_temp(delta):
@@ -111,7 +114,15 @@ def mdf_temp(delta):
                 temp[i][j] = 2
             elif (j == 0): # Parede (esquerda) do dominio
                 temp[i][j] = 9
-            elif isInsideCar(j*delta, i*delta):
+            elif isInsideCar(j*delta, i*delta) and i*delta <= np.tan(np.pi/3) * j*delta + h - 3*np.tan(np.pi/3): # Motor do carro
+                temp[i][j] = 80
+                if not isInsideCar(j*delta, (i+1)*delta):
+                    print("Contorno cima")
+                if not isInsideCar(j*delta, (i-1)*delta):
+                    print("Contorno baixo")
+                if not isInsideCar((j+1)*delta, i*delta):
+                    print("Contorno direita")
+            elif isInsideCar(j*delta, i*delta): # Dentro do carro
                 temp[i][j] = -1
                 if not isInsideCar(j*delta, (i+1)*delta):
                     print("Contorno cima")
@@ -127,11 +138,10 @@ def mdf_temp(delta):
 
 def main():
     print("Psi:")
-    mdf_psi(0.45)
-    plot(0.45, mdf_psi(0.45))
-    #print("T:")
-    #print(mdf_temp(0.4))
-    #plot(0.01, mdf_temp(0.01))
+    # print(mdf_psi(0.4))
+    # print("T:")
+    # print(mdf_temp(0.045))
+    plot(0.045, mdf_psi(0.045))
 
 
 if __name__ == "__main__":
