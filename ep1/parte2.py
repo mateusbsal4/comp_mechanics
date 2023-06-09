@@ -52,21 +52,35 @@ def plot_pressure(delta, graph): #plota a função de corrente
     plt.show()
 
 
-def plot_p_contour(x_contour, p_contour):
-    sorted_indices = np.argsort(x_contour)
-    sorted_x_contour = x_contour[sorted_indices]
-    sorted_p_contour = p_contour[sorted_indices]
+
+
+def plot_p_upper_contour(sorted_x_contour, sorted_p_contour):
+    #print("X_contour", x_contour)
+    #print("P_contour", p_contour)
     min_index = np.argmin(sorted_p_contour)
     min_x = sorted_x_contour[min_index]
     min_p = sorted_p_contour[min_index]
+    #plt.scatter(x_contour, p_contour)
+    print("sortedX_contour", sorted_x_contour)
+    print("sortedP_contour", sorted_p_contour)
     plt.plot(sorted_x_contour, sorted_p_contour)
     plt.xlabel('x [m]')
     plt.ylabel('Pressão [Pa]')
-    plt.title('Pressão ao longo da carroceria')
+    plt.title('Pressão ao longo da parte superior da carroceira')
     plt.grid(True)
     plt.annotate(f'Pressão mínima: ({min_x:.2f}, {min_p:.2f})', xy=(min_x, min_p),
              xytext=(min_x+0.4, min_p + 1), arrowprops=dict(arrowstyle='->'))
-    plt.show()
+    #plt.show()
+
+def plot_p_lower_contour(x_contour, p_contour):
+    print("sortedX_contour", x_contour)
+    print("sortedP_contour", p_contour)
+    plt.plot(x_contour, p_contour)
+    plt.xlabel('x [m]')
+    plt.ylabel('Pressão [Pa]')
+    plt.title('Pressão ao longo da parte superior da carroceira')
+    plt.grid(True)
+    #plt.show()
 
 def isInsideCar(x, y, inclusive = 0):
     if(inclusive):
@@ -200,63 +214,128 @@ def mdf_pressure(u, v):
     p = p_atm+0.5*rho*((gama-1)/gama)*(V**2-(u**2+v**2))
     return p
 
-def mdf_p_along_contour(delta, p):
+def mdf_p_upper_contour(delta, p):
     n_rows, n_cols = p.shape
     inContour = np.zeros((n_rows, n_cols), dtype=bool)    
     p_contour = []
     x_contour = []   
     for i in range(n_rows):
         for j in range(n_cols):
-            if not isInsideCar(j*delta, i*delta) and (isInsideCar((j+1)*delta, i*delta, 1) or isInsideCar((j-1)*delta, i*delta, 1) or isInsideCar(j*delta, (i-1)*delta, 1)):
+            if (not isInsideCar(j*delta, i*delta) and (isInsideCar(j*delta, (i-1)*delta))) or (((j*delta)-d-L/2)**2+(i*delta-h)**2==R**2 and i*delta > h):
                 inContour[i][j] = 1
                 p_contour.append(p[i][j])
                 x_contour.append(j*delta)
-    return np.array(x_contour), np.array(p_contour)
+    x_contour = np.array(x_contour)
+    p_contour = np.array(p_contour)    
+    sorted_indices = np.argsort(x_contour)
+    sorted_x_contour = x_contour[sorted_indices]
+    sorted_p_contour = p_contour[sorted_indices]
+    return sorted_x_contour, sorted_p_contour
+
+def mdf_p_lower_contour(delta, p):
+    n_rows, n_cols = p.shape
+    inContour = np.zeros((n_rows, n_cols), dtype=bool)    
+    p_contour = []
+    x_contour = []   
+    for i in range(n_rows):
+        for j in range(n_cols):
+            if ((j*delta >= d and j*delta <= d+L) and i*delta==h) or (not isInsideCar(j*delta, i*delta, 1) and isInsideCar(j*delta, (i+1)*delta)):
+                inContour[i][j] = 1
+                p_contour.append(p[i][j])
+                x_contour.append(j*delta)
+    x_contour = np.array(x_contour)
+    p_contour = np.array(p_contour)  
+    return x_contour, p_contour
 
 
 
+
+def calculate_lift_force(x_contour, p_contour, x_lower, p_lower):
+    f = 0
+    if len(x_contour) > len(x_lower):
+        indices = np.isin(x_contour, x_lower)
+        x_filtered = x_contour[indices]
+        p_filtered = p_contour[indices]
+        assert len(x_filtered) == len(x_lower)
+        for j in range(1, len(x_filtered)):
+            if x_filtered[j] < d+R:
+                dtheta = np.arccos((d+R-x_filtered[j])/R) - np.arccos((d+R-x_filtered[j-1])/R)
+                theta = np.arccos((d+R-x_filtered[j])/R)
+            elif x_filtered[j] > d+R and x_filtered[j-1] < d+R:
+                dtheta = np.pi - np.arccos((x_filtered[j]-d-R)/R) - np.arccos((d+R-x_filtered[j-1])/R)
+                theta = np.arccos((x_filtered[j]-d-R)/R)
+            elif  x_filtered[j-1] > d+R:
+                dtheta = np.arccos((x_filtered[j-1]-d-R)/R) - np.arccos((x_filtered[j]-d-R)/R)
+                theta = np.arccos((x_filtered[j]-d-R)/R)
+            f -= p_filtered[j]*dtheta*np.sin(theta)                #aproximando fndl = frdthetasin(theta) na integral
+        f *= R
+        for j in range(1, len(x_lower)):
+            f += p_lower[j]*(x_lower[j]-x_lower[j-1])
+    else:
+        indices = np.isin(x_lower, x_contour)
+        x_filtered = x_lower[indices]
+        p_filtered = p_lower[indices]
+        assert len(x_contour) == len(x_filtered)
+        for j in range(1, len(x_filtered)):
+            if x_contour[j] < d+R:
+                dtheta = np.arccos((d+R-x_contour[j])/R) - np.arccos((d+R-x_contour[j-1])/R)
+                theta = np.arccos((d+R-x_contour[j])/R)
+            elif x_contour[j] > d+R and x_contour[j-1] < d+R:
+                dtheta = np.pi - np.arccos((x_contour[j]-d-R)/R) - np.arccos((d+R-x_contour[j-1])/R)
+                theta = np.arccos((x_contour[j]-d-R)/R)
+            elif  x_contour[j-1] > d+R:
+                dtheta = np.arccos((x_contour[j-1]-d-R)/R) - np.arccos((x_contour[j]-d-R)/R)
+                theta = np.arccos((x_contour[j]-d-R)/R)
+            f -= p_contour[j]*dtheta*np.sin(theta)                 #aproximando fndl = frdthetasin(theta) na integral
+        f *= R
+        for j in range(1, len(x_filtered)):
+            f += p_filtered[j]*(x_filtered[j]-x_filtered[j-1])
+    return f
 
 def mdf_temp(delta):
     temp = np.zeros((int(2*L/delta) + 1,int(2*L/delta) + 1))
-    for i in range(temp.shape[0]): # linhas, iteração de baixo para cima
-        for j in range(temp.shape[1]): # colunas, iteração da esquerda para a direita
-            #divisão por regioes especificas
-            if (i == temp.shape[0]-1 and j == temp.shape[1]-1): # canto superior direita
-                temp[i][j] = 21
-            elif (i == temp.shape[0]-1 and j == 0): # canto superior esquerda
-                temp[i][j] = 12
-            elif (i == 0 and j == temp.shape[1]-1): # canto inferior direita
-                temp[i][j] = 31
-            elif (i == 0 and j == 0): # canto inferior esquerda
-                temp[i][j] = 13
-            elif (i == temp.shape[0]-1): # Teto do dominio
-                temp[i][j] = 1
-            elif (i == 0):
-                temp[i][j] = 0 # Chao do domínio
-            elif (j == temp.shape[1]-1): # Parede (direita) do dominio
-                temp[i][j] = 2
-            elif (j == 0): # Parede (esquerda) do dominio
-                temp[i][j] = 9
-            elif isInsideCar(j*delta, i*delta) and i*delta <= np.tan(np.pi/3) * j*delta + h - 3*np.tan(np.pi/3): # Motor do carro
-                temp[i][j] = 80
-                if not isInsideCar(j*delta, (i+1)*delta):
-                    print("Contorno cima")
-                if not isInsideCar(j*delta, (i-1)*delta):
-                    print("Contorno baixo")
-                if not isInsideCar((j+1)*delta, i*delta):
-                    print("Contorno direita")
-            elif isInsideCar(j*delta, i*delta): # Dentro do carro
-                temp[i][j] = -1
-                if not isInsideCar(j*delta, (i+1)*delta):
-                    print("Contorno cima")
-                if not isInsideCar(j*delta, (i-1)*delta):
-                    print("Contorno baixo")
-                if not isInsideCar((j+1)*delta, i*delta):
-                    print("Contorno direita")
-                if not isInsideCar((j-1)*delta, i*delta):
-                    print("Contorno esquerda")
-            else: # Parte central do dominio
-                temp[i][j] = 3
+    max_error = 1
+    while(max_error>epsilon):
+        psi_old = np.copy(max_error)
+        for i in range(temp.shape[0]): # linhas, iteração de baixo para cima
+            for j in range(temp.shape[1]): # colunas, iteração da esquerda para a direita7
+                #divisão por regioes especificas
+                if (i == temp.shape[0]-1 and j == temp.shape[1]-1): # canto superior direita
+                    temp[i][j] = 21
+                elif (i == temp.shape[0]-1 and j == 0): # canto superior esquerda
+                    temp[i][j] = 12
+                elif (i == 0 and j == temp.shape[1]-1): # canto inferior direita
+                    temp[i][j] = 31
+                elif (i == 0 and j == 0): # canto inferior esquerda
+                    temp[i][j] = 13
+                elif (i == temp.shape[0]-1): # Teto do dominio
+                    temp[i][j] = 1
+                elif (i == 0):
+                    temp[i][j] = 0 # Chao do domínio
+                elif (j == temp.shape[1]-1): # Parede (direita) do dominio
+                    temp[i][j] = 2
+                elif (j == 0): # Parede (esquerda) do dominio
+                    temp[i][j] = 9
+                elif isInsideCar(j*delta, i*delta) and i*delta <= np.tan(np.pi/3) * j*delta + h - 3*np.tan(np.pi/3): # Motor do carro
+                    temp[i][j] = 80
+                    if not isInsideCar(j*delta, (i+1)*delta):
+                        print("Contorno cima")
+                    if not isInsideCar(j*delta, (i-1)*delta):
+                        print("Contorno baixo")
+                    if not isInsideCar((j+1)*delta, i*delta):
+                        print("Contorno direita")
+                elif isInsideCar(j*delta, i*delta): # Dentro do carro
+                    temp[i][j] = -1
+                    if not isInsideCar(j*delta, (i+1)*delta):
+                        print("Contorno cima")
+                    if not isInsideCar(j*delta, (i-1)*delta):
+                        print("Contorno baixo")
+                    if not isInsideCar((j+1)*delta, i*delta):
+                        print("Contorno direita")
+                    if not isInsideCar((j-1)*delta, i*delta):
+                        print("Contorno esquerda")
+                else: # Parte central do dominio
+                    temp[i][j] = 3
     return temp
 
 def main():
@@ -270,10 +349,20 @@ def main():
     #print("V", v)
     #plot_velfield(0.5, u, v)
     #plot_pressure(0.05, p)
-    x_contour, p_contour = mdf_p_along_contour(0.05, p)
-    print(x_contour)
-    print(p_contour)
-    plot_p_contour(x_contour, p_contour)
+    x_upper, p_upper = mdf_p_upper_contour(0.05, p)
+    x_lower, p_lower = mdf_p_lower_contour(0.05, p)
+    #assert len(x_lower) ==len(x_upper)
+    plot_p_upper_contour(x_upper, p_upper)
+    #plot_p_lower_contour(x_lower, p_lower)
+    #print(x_contour)
+    #print(p_contour)
+    #print("X UPPER ", x_upper)
+    #print("X LOWER", x_lower)
+    F = calculate_lift_force(x_upper, p_upper, x_lower, p_lower)
+    print("F", F)
+    #print(F)
+    plt.show()
+    #plot_p_contour(x_contour, p_contour)
 
 
 if __name__ == "__main__":
@@ -281,4 +370,3 @@ if __name__ == "__main__":
     start_time = time.time()
     main()
     print("--- %s seconds ---" % (time.time() - start_time))
-
