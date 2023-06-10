@@ -4,8 +4,8 @@ from mpl_toolkits.mplot3d import Axes3D
 
 
 #Parâmetros (SI)
+h = 0.05
 L = 3
-h = 0.15
 d = L/2
 H = 2*L
 lamb = 1.85
@@ -102,6 +102,7 @@ def mdf_psi(delta):
     while(max_error>epsilon):
         psi_old = np.copy(psi)
         #print("Psi old antes", psi_old)
+        #for i in range(psi.shape[0] - 1, -1, -1):
         for i in range(psi.shape[0]): # linhas, iteração de baixo para cima
             for j in range(psi.shape[1]): # colunas, iteração da esquerda para a direita
                 if (i == psi.shape[0]-1 and j == 0): # canto superior
@@ -112,9 +113,9 @@ def mdf_psi(delta):
                     psi[i][j] = (2*psi[i][1]+psi[i+1][0]+psi[i-1][0])/4
                 elif (i == psi.shape[0]-1): # Teto do dominio
                     if (j == psi.shape[1]-1): # Caso esteja no MEIO do dominio (CUIDADO)
-                        psi[i][j] = 0.25*(psi[i][j-1]+psi[i][j-1]+2*psi[i-1][j]+V*delta)
+                        psi[i][j] = 0.25*(psi[i][j-1]+psi[i][j-1]+2*psi[i-1][j]+2*V*delta)
                     else:
-                        psi[i][j] = 0.25*(psi[i][j+1]+psi[i][j-1]+2*psi[i-1][j]+V*delta)
+                        psi[i][j] = 0.25*(psi[i][j+1]+psi[i][j-1]+2*psi[i-1][j]+2*V*delta)
                 elif (i == 0): # Chao do domínio
                     psi[i][j] = 0
                 elif isInsideCar(j*delta, i*delta, 1): #dentro do carro
@@ -186,7 +187,7 @@ def mdf_vel(delta, psi):
             elif (i == 0): # Chao do domínio
                 u[i][j] = (-psi[i+2][j]+4*psi[i+1][j]-3*psi[i][j])/(2*delta)    #prog em y
                 v[i][j] = -(psi[i][j+1]-psi[i][j-1])/(2*delta)   
-            elif isInsideCar(j*delta, i*delta):      #dentro do carro
+            elif isInsideCar(j*delta, i*delta, 1):      #dentro do carro
                 u[i][j] = 0
                 v[i][j] = 0
             elif isInsideCar((j+1)*delta, i*delta, 1) and isInsideCar(j*delta, (i-1)*delta, 1):       #contorno a direita e abaixo
@@ -221,10 +222,13 @@ def mdf_p_upper_contour(delta, p):
     x_contour = []   
     for i in range(n_rows):
         for j in range(n_cols):
-            if (not isInsideCar(j*delta, i*delta) and (isInsideCar(j*delta, (i-1)*delta))) or (((j*delta)-d-L/2)**2+(i*delta-h)**2==R**2 and i*delta > h):
+            #if (not isInsideCar(j*delta, i*delta, 1) and (isInsideCar(j*delta, (i-1)*delta))):
+            if (not isInsideCar(j*delta, i*delta, 1) and (isInsideCar(j*delta, (i-1)*delta))) or (((j*delta)-d-L/2)**2+(i*delta-h)**2==R**2 and i*delta > h):
+                #print("i e j que entraram: ", i, j)
                 inContour[i][j] = 1
                 p_contour.append(p[i][j])
                 x_contour.append(j*delta)
+    #print("INCONTOUR UPPER", inContour)
     x_contour = np.array(x_contour)
     p_contour = np.array(p_contour)    
     sorted_indices = np.argsort(x_contour)
@@ -239,10 +243,12 @@ def mdf_p_lower_contour(delta, p):
     x_contour = []   
     for i in range(n_rows):
         for j in range(n_cols):
+            #if (not isInsideCar(j*delta, i*delta, 1) and isInsideCar(j*delta, (i+1)*delta, 1)):
             if ((j*delta >= d and j*delta <= d+L) and i*delta==h) or (not isInsideCar(j*delta, i*delta, 1) and isInsideCar(j*delta, (i+1)*delta)):
                 inContour[i][j] = 1
                 p_contour.append(p[i][j])
                 x_contour.append(j*delta)
+    #print("INCONTOUR LOWER", inContour)
     x_contour = np.array(x_contour)
     p_contour = np.array(p_contour)  
     return x_contour, p_contour
@@ -252,6 +258,8 @@ def mdf_p_lower_contour(delta, p):
 
 def calculate_lift_force(x_contour, p_contour, x_lower, p_lower):
     f = 0
+    print("len(x_contour)", len(x_contour))
+    print("len(x_lower)", len(x_lower))
     if len(x_contour) > len(x_lower):
         indices = np.isin(x_contour, x_lower)
         x_filtered = x_contour[indices]
@@ -345,23 +353,23 @@ def main():
     u, v = mdf_vel(0.05, psi)
     p = mdf_pressure(u, v)
     #plot_psi(0.05, psi)
-    #print("U:", u)
-    #print("V", v)
-    #plot_velfield(0.5, u, v)
-    #plot_pressure(0.05, p)
+    print("U:", u)
+    print("V", v)
+    #plot_velfield(0.1, u, v)
+    #plot_pressure(0.1, p)
     x_upper, p_upper = mdf_p_upper_contour(0.05, p)
     x_lower, p_lower = mdf_p_lower_contour(0.05, p)
     #assert len(x_lower) ==len(x_upper)
     plot_p_upper_contour(x_upper, p_upper)
     #plot_p_lower_contour(x_lower, p_lower)
-    #print(x_contour)
+    #print(x_contour)s
     #print(p_contour)
     #print("X UPPER ", x_upper)
     #print("X LOWER", x_lower)
     F = calculate_lift_force(x_upper, p_upper, x_lower, p_lower)
     print("F", F)
-    #print(F)
     plt.show()
+    #print(F)
     #plot_p_contour(x_contour, p_contour)
 
 
