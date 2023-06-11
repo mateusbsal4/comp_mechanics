@@ -205,6 +205,9 @@ def mdf_vel(delta, psi):
             elif isInsideCar((j-1)*delta, i*delta, 1): #Contorno está a esquerda
                 u[i][j] = (psi[i+1][j]-psi[i-1][j])/(2*delta)                           
                 v[i][j] = -(-psi[i+2][j]+4*psi[i+1][j]-3*psi[i][j])/(2*delta)            #prog em x
+            elif isInsideCar(j*delta, (i+1)*delta, 1): #Contorno está acima
+                u[i][j] = (3*psi[i][j]-4*psi[i-1][j]+psi[i-2][j])/(2*delta)      #reg em y                     
+                v[i][j] = -(psi[i][j+1]-psi[i][j-1])/(2*delta) 
             else: # Parte central do dominio
                 u[i][j] = (psi[i+1][j]-psi[i-1][j])/(2*delta)     
                 v[i][j] = -(psi[i][j+1]-psi[i][j-1])/(2*delta)   
