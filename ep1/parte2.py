@@ -8,12 +8,13 @@ h = 0.15
 L = 3
 d = L/2
 H = 2*L
-lamb = 1.85
 V = 100/3.6
 R = L/2
 epsilon = 0.01
 p_atm = 101325
+k = 0.026
 rho = 1.25
+cp = 1002
 gama = 1.4
 
 def plot_psi(delta, graph): #plota a função de corrente
@@ -24,6 +25,16 @@ def plot_psi(delta, graph): #plota a função de corrente
     plt.pcolor(X, Y, graph, cmap = 'jet')
     plt.colorbar(label='Magnitude')
     plt.title('Função de corrente')
+    plt.show()
+
+def plot_temp(delta, graph): #plota a função de corrente
+    fig = plt.figure()
+    x = np.linspace(0, L + 2*d, int(2*L/delta)+1)
+    y = np.linspace(0, H, int(2*L/delta)+1)
+    X, Y = np.meshgrid(x, y)
+    plt.pcolor(X, Y, graph, cmap = 'jet')
+    plt.colorbar(label='Magnitude')
+    plt.title('Função de temperatura')
     plt.show()
 
 
@@ -92,7 +103,7 @@ def isInsideCar(x, y, inclusive = 0):
 
 
 
-def mdf_psi(delta):
+def mdf_psi(delta, lamb):
     n_lines = int(2*L/delta)+1        
     n_columns = int(L/delta)+1 
     assert n_lines%2 != 0         #escolher n.o de linhas ímpar devido a simetria   
@@ -213,7 +224,6 @@ def mdf_vel(delta, psi):
                 v[i][j] = -(psi[i][j+1]-psi[i][j-1])/(2*delta)   
     return u, v
 
-
 def mdf_pressure(u, v):
     p = p_atm+0.5*rho*((gama-1)/gama)*(V**2-(u**2+v**2))
     return p
@@ -257,7 +267,6 @@ def mdf_p_lower_contour(delta, p):
     x_contour = np.array(x_contour)
     p_contour = np.array(p_contour)  
     return x_contour, p_contour
-
 
 def calculate_lift_force(x_upper, p_upper, x_lower, p_lower):
     f = 0
@@ -349,74 +358,142 @@ def calculate_lift_force(x_upper, p_upper, x_lower, p_lower):
 #            f += p_filtered[j]*(x_filtered[j]-x_filtered[j-1])
 #    return f
 
-def mdf_temp(delta):
-    temp = np.zeros((int(2*L/delta) + 1,int(2*L/delta) + 1))
-    max_error = 1
+def mdf_temp(delta, lamb, u, v):
+    n_lines = int(2*L/delta)+1        
+    n_columns = n_lines
+    temp = np.full((n_lines, n_columns), 0, dtype=float)        #precisa estar entre 0 e 1
+    max_error = 1       #inicialmente temp e temp velho são iguais
     while(max_error>epsilon):
-        psi_old = np.copy(max_error)
+        temp_old = np.copy(temp) 
         for i in range(temp.shape[0]): # linhas, iteração de baixo para cima
-            for j in range(temp.shape[1]): # colunas, iteração da esquerda para a direita7
-                #divisão por regioes especificas
-                if (i == temp.shape[0]-1 and j == temp.shape[1]-1): # canto superior direita
-                    temp[i][j] = 21
-                elif (i == temp.shape[0]-1 and j == 0): # canto superior esquerda
-                    temp[i][j] = 12
-                elif (i == 0 and j == temp.shape[1]-1): # canto inferior direita
-                    temp[i][j] = 31
-                elif (i == 0 and j == 0): # canto inferior esquerda
-                    temp[i][j] = 13
+            for j in range(temp.shape[1]): # colunas, iteração da esquerda para a direita
+                if (i == temp.shape[0]-1 and j == temp.shape[1]-1): # canto superior direito 
+                    temp[i][j] = (temp[i][j-1] + temp[i-1][j])/2      
+                elif (i == 0 and j ==temp.shape[1]-1): # canto inferior direito
+                    temp[i][j] = (temp[i][j-1] + temp[i+1][j])/2
+                elif (j == 0): # Parede esquerda do dominio, incluindo os cantos superior e inferior
+                    temp[i][j] = 20
+                elif (j == temp.shape[1]-1): # Parede direita do dominio
+                    if v[i][j] >= 0:
+                        temp[i][j] = k*(2*temp[i][j-1] + temp[i-1][j] + temp[i+1][j])/(delta**2) + rho*cp*u[i][j]*(temp[i-1][j])/delta
+                        temp[i][j] /= 4*k/(delta**2) + rho*cp*u[i][j]/delta
+                    else:
+                        temp[i][j] = k*(2*temp[i][j-1] + temp[i-1][j] + temp[i+1][j])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j])/delta
+                        temp[i][j] /= 4*k/(delta**2) - rho*cp*u[i][j]/delta
                 elif (i == temp.shape[0]-1): # Teto do dominio
-                    temp[i][j] = 1
-                elif (i == 0):
-                    temp[i][j] = 0 # Chao do domínio
-                elif (j == temp.shape[1]-1): # Parede (direita) do dominio
-                    temp[i][j] = 2
-                elif (j == 0): # Parede (esquerda) do dominio
-                    temp[i][j] = 9
-                elif isInsideCar(j*delta, i*delta) and i*delta <= np.tan(np.pi/3) * j*delta + h - 3*np.tan(np.pi/3): # Motor do carro
+                    temp[i][j] = k*(temp[i][j+1] + temp[i][j-1] + 2*temp[i-1][j])/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1])/delta
+                    temp[i][j] /= 4*k/(delta**2) + rho*cp*u[i][j]/delta
+                elif (i == 0): # Chao do domínio
+                    temp[i][j] = k*(temp[i][j+1] + temp[i][j-1] + 2*temp[i+1][j])/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1])/delta
+                    temp[i][j] /= 4*k/(delta**2) + rho*cp*u[i][j]/delta
+                elif isInsideCar(j*delta, i*delta, 1) and i*delta <= np.tan(np.pi/3) * j*delta + h - 3*np.tan(np.pi/3): # Motor do carro
                     temp[i][j] = 80
-                    if not isInsideCar(j*delta, (i+1)*delta):
-                        print("Contorno cima")
-                    if not isInsideCar(j*delta, (i-1)*delta):
-                        print("Contorno baixo")
-                    if not isInsideCar((j+1)*delta, i*delta):
-                        print("Contorno direita")
-                elif isInsideCar(j*delta, i*delta): # Dentro do carro
-                    temp[i][j] = -1
-                    if not isInsideCar(j*delta, (i+1)*delta):
-                        print("Contorno cima")
-                    if not isInsideCar(j*delta, (i-1)*delta):
-                        print("Contorno baixo")
-                    if not isInsideCar((j+1)*delta, i*delta):
-                        print("Contorno direita")
-                    if not isInsideCar((j-1)*delta, i*delta):
-                        print("Contorno esquerda")
+                elif isInsideCar(j*delta, i*delta, 1):      #dentro do carro
+                    temp[i][j] = 25
+                elif isInsideCar((j+1)*delta, i*delta, 1) and isInsideCar(j*delta, (i-1)*delta, 1):       #contorno a direita e abaixo
+                    # n_center = n_columns - j -2                    #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    # y_center = i*delta - h                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
+                    # bij = (delta - (np.sqrt(R**2-(y_center)**2)-n_center*delta))/delta
+                    # assert bij<1
+                    # n_center = n_columns - j -1 #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    # y_center = (i-1)*delta - h   #altura do pto do contorno ate o centro
+                    # aij = (delta - (np.sqrt(R**2-(n_center*delta)**2)-y_center))/delta  #pitagoras
+                    # assert aij<1
+                    # temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/(aij*(aij+1)) + temp[i][j+1]/(bij*(bij+1)) + temp[i][j-1]/(bij + 1))/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1] + temp[i-1][j])/delta
+                    # temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(bij*delta**2) + 2*rho*cp*u[i][j]/delta
+                    pass
+                elif isInsideCar((j-1)*delta, i*delta, 1) and isInsideCar(j*delta, (i-1)*delta, 1):       #contorno a esquerda e abaixo
+                    # n_center = n_columns - j -2                    #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    # y_center = i*delta - h                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
+                    # bij = (delta - (np.sqrt(R**2-(y_center)**2)-n_center*delta))/delta
+                    # assert bij<1
+                    # n_center = n_columns - j -1 #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    # y_center = (i-1)*delta - h   #altura do pto do contorno ate o centro
+                    # aij = (delta - (np.sqrt(R**2-(n_center*delta)**2)-y_center))/delta  #pitagoras
+                    # assert aij<1
+                    # temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/(aij*(aij+1)) + temp[i][j-1]/(bij*(bij+1)) + temp[i][j+1]/(bij + 1))/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
+                    # temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(bij*delta**2)
+                    pass
+                elif isInsideCar(j*delta, (i-1)*delta, 1): #Contorno está abaixo
+                    # n_center = n_columns/2 - j - 1 #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    # y_center = (i-1)*delta - h   #altura do pto do contorno ate o centro
+                    # aij = (delta - (np.sqrt(R**2-(n_center*delta)**2)-y_center))/delta  #pitagoras
+                    # print(aij)
+                    # assert aij<1
+                    # if v[i][j]>=0:
+                    #     temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1] + temp[i-1][j])/delta
+                    #     temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2) + 2*rho*cp*u[i][j]/delta
+                    # else:
+                    #     temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
+                    #     temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2)
+                    pass
+                elif isInsideCar((j+1)*delta, i*delta, 1): #Contorno está a direita
+                    n_center = n_columns/2 - j -2                    #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    y_center = i*delta - h                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
+                    bij = (delta - (np.sqrt(R**2-(y_center)**2)-n_center*delta))/delta  #pitagoras
+                    assert bij<1    
+                    temp[i][j] = k*(2*temp[i][j-1]/(bij+1) + 2*temp[i][j+1]/bij*(bij+1) + temp[i+1][j] + temp[i-1][j])/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1] + temp[i-1][j])/delta
+                    temp[i][j] /= 2*k/(bij*delta**2) + 2*k/(delta**2) + 2*rho*cp*u[i][j]/delta
+                elif isInsideCar((j-1)*delta, i*delta, 1): #Contorno está a esquerda
+                    # n_center = n_columns/2 - j -2                    #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    # y_center = i*delta - h                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
+                    # bij = (delta - (np.sqrt(R**2-(y_center)**2)-n_center*delta))/delta  #pitagoras
+                    # assert bij<1    
+                    # temp[i][j] = k*(2*temp[i][j+1]/(bij+1) + 2*temp[i][j-1]/bij*(bij+1) + temp[i+1][j] + temp[i-1][j])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
+                    # temp[i][j] /= 2*k/(bij*delta**2) + 2*k/(delta**2)
+                    pass
+                elif isInsideCar(j*delta, (i+1)*delta, 1): #Contorno está acima
+                    # n_center = n_columns/2 - j - 1 #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    # y_center = (i-1)*delta - h   #altura do pto do contorno ate o centro
+                    # aij = (delta - (np.sqrt(R**2-(n_center*delta)**2)-y_center))/delta  #pitagoras
+                    # print(aij)
+                    # assert aij<1
+                    # if v[i][j]>=0:
+                    #     temp[i][j] = k*(2*temp[i-1][j]/(aij+1) + 2*temp[i+1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1] + temp[i-1][j])/delta
+                    #     temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2) + 2*rho*cp*u[i][j]/delta
+                    # else:
+                    #     temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
+                    #     temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2)
+                    pass
                 else: # Parte central do dominio
-                    temp[i][j] = 3
+                    if v[i][j] >= 0:
+                        temp[i][j] = k*(temp[i][j+1] + temp[i][j-1] + temp[i-1][j] + temp[i+1][j])/(delta**2) + rho*cp*u[i][j]*(temp[i-1][j] + temp[i][j-1])/delta
+                        temp[i][j] /= 4*k/(delta**2) + 2*rho*cp*u[i][j]/delta
+                    # else:
+                    #     temp[i][j] = k*(temp[i][j+1] + temp[i][j-1] + temp[i-1][j] + temp[i+1][j])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
+                    #     temp[i][j] /= 4*k/(delta**2)
+                    pass
+                temp[i][j] = lamb*temp[i][j]+(1-lamb)*temp_old[i][j]
+        max_error = np.max(np.abs((temp-temp_old)))
+        print("T", temp)
+        print("T old", temp_old)
+        print("Max error ", max_error)
     return temp
 
 def main():
     # print(mdf_psi(0.4))
     #mdf_psi(0.045)
-    psi = mdf_psi(0.06)         #NÃO usar divisor de 0.15 ou 0.2 com os filtros implementados 
-    u, v = mdf_vel(0.06, psi)   #cálculo de F_lift fica errado
-    p = mdf_pressure(u, v)
-    #plot_psi(0.05, psi)
-    print("U:", u)
-    print("V", v)
-    #plot_velfield(0.1, u, v)
+    psi = mdf_psi(L/8, 1.85)         #NÃO usar divisor de 0.15 ou 0.2 com os filtros implementados 
+    u, v = mdf_vel(L/8, psi)   #cálculo de F_lift fica errado
+    temp = mdf_temp(L/8, 1.15, u, v)
+    # p = mdf_pressure(u, v)
+    print(temp)
+    plot_temp(L/8, temp)
+    # print("U:", u)
+    # print("V", v)
+    plot_velfield(L/8, u, v)
     #plot_pressure(0.1, p)
-    x_upper, p_upper = mdf_p_upper_contour(0.06, p)
-    x_lower, p_lower = mdf_p_lower_contour(0.06, p)
+    # x_upper, p_upper = mdf_p_upper_contour(0.06, p)
+    # x_lower, p_lower = mdf_p_lower_contour(0.06, p)
     #assert len(x_lower) ==len(x_upper)
-    plot_p_upper_contour(x_upper, p_upper)
-    plot_p_lower_contour(x_lower, p_lower)
+    # plot_p_upper_contour(x_upper, p_upper)
+    # plot_p_lower_contour(x_lower, p_lower)
     #print(x_contour)s
     #print(p_contour)
     #print("X UPPER ", x_upper)
     #print("X LOWER", x_lower)
-    F = calculate_lift_force(x_upper, p_upper, x_lower, p_lower)
-    print("F", F)
+    # F = calculate_lift_force(x_upper, p_upper, x_lower, p_lower)
+    # print("F", F)
     plt.show()
     #print(F)
     #plot_p_contour(x_contour, p_contour)
