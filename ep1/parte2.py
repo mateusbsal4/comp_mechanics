@@ -4,7 +4,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 
 #Parâmetros (SI)
-h = 0.05
+h = 0.15
 L = 3
 d = L/2
 H = 2*L
@@ -222,8 +222,9 @@ def mdf_p_upper_contour(delta, p):
     x_contour = []   
     for i in range(n_rows):
         for j in range(n_cols):
-            #if (not isInsideCar(j*delta, i*delta, 1) and (isInsideCar(j*delta, (i-1)*delta))):
-            if (not isInsideCar(j*delta, i*delta, 1) and (isInsideCar(j*delta, (i-1)*delta))) or (((j*delta)-d-L/2)**2+(i*delta-h)**2==R**2 and i*delta > h):
+            #if (not isInsideCar(j*delta, i*delta, 1) and (isInsideCar(j*delta, (i-1)*delta) or isInsideCar((j+1)*delta, i*delta) or isInsideCar((j-1)*delta, i*delta))):
+            if (not isInsideCar(j*delta, i*delta, 1) and (isInsideCar(j*delta, (i-1)*delta) or isInsideCar((j+1)*delta, i*delta) or isInsideCar((j-1)*delta, i*delta))) or (((j*delta)-d-L/2)**2+(i*delta-h)**2==R**2 and i*delta > h):
+            #if (not isInsideCar(j*delta, i*delta, 1) and (isInsideCar(j*delta, (i-1)*delta) or isInsideCar((j+1)*delta, i*delta) or isInsideCar((j-1)*delta, i*delta))) or (((j*delta)-d-L/2)**2+(i*delta-h)**2==R**2 and i*delta > h):
                 #print("i e j que entraram: ", i, j)
                 inContour[i][j] = 1
                 p_contour.append(p[i][j])
@@ -244,7 +245,8 @@ def mdf_p_lower_contour(delta, p):
     for i in range(n_rows):
         for j in range(n_cols):
             #if (not isInsideCar(j*delta, i*delta, 1) and isInsideCar(j*delta, (i+1)*delta, 1)):
-            if ((j*delta >= d and j*delta <= d+L) and i*delta==h) or (not isInsideCar(j*delta, i*delta, 1) and isInsideCar(j*delta, (i+1)*delta)):
+            #if ((j*delta >= d and j*delta <= d+L) and i*delta==h) or (not isInsideCar(j*delta, i*delta, 1) and isInsideCar(j*delta, (i+1)*delta)):
+            if not isInsideCar(j*delta, i*delta, 1) and isInsideCar(j*delta, (i+1)*delta):
                 inContour[i][j] = 1
                 p_contour.append(p[i][j])
                 x_contour.append(j*delta)
@@ -254,12 +256,12 @@ def mdf_p_lower_contour(delta, p):
     return x_contour, p_contour
 
 
-
-
-def calculate_lift_force(x_contour, p_contour, x_lower, p_lower):
+def calculate_lift_force(x_upper, p_upper, x_lower, p_lower):
     f = 0
-    print("len(x_contour)", len(x_contour))
-    print("len(x_lower)", len(x_lower))
+    unique_x_positions, unique_indices = np.unique(x_upper, return_index=True)
+    x_contour = x_upper[np.sort(unique_indices)]
+    p_contour = np.array([np.mean(p_upper[x_upper == x]) for x in x_contour])
+
     if len(x_contour) > len(x_lower):
         indices = np.isin(x_contour, x_lower)
         x_filtered = x_contour[indices]
@@ -299,6 +301,50 @@ def calculate_lift_force(x_contour, p_contour, x_lower, p_lower):
         for j in range(1, len(x_filtered)):
             f += p_filtered[j]*(x_filtered[j]-x_filtered[j-1])
     return f
+
+#def calculate_lift_force(x_contour, p_contour, x_lower, p_lower):
+#    f = 0
+#    print("len(x_contour)", len(x_contour))
+#    print("len(x_lower)", len(x_lower))
+#    if len(x_contour) > len(x_lower):
+#        indices = np.isin(x_contour, x_lower)
+#        x_filtered = x_contour[indices]
+#        p_filtered = p_contour[indices]
+#        assert len(x_filtered) == len(x_lower)
+#        for j in range(1, len(x_filtered)):
+#            if x_filtered[j] < d+R:
+#                dtheta = np.arccos((d+R-x_filtered[j])/R) - np.arccos((d+R-x_filtered[j-1])/R)
+#                theta = np.arccos((d+R-x_filtered[j])/R)
+#            elif x_filtered[j] > d+R and x_filtered[j-1] < d+R:
+#                dtheta = np.pi - np.arccos((x_filtered[j]-d-R)/R) - np.arccos((d+R-x_filtered[j-1])/R)
+#                theta = np.arccos((x_filtered[j]-d-R)/R)
+#            elif  x_filtered[j-1] > d+R:
+#                dtheta = np.arccos((x_filtered[j-1]-d-R)/R) - np.arccos((x_filtered[j]-d-R)/R)
+#                theta = np.arccos((x_filtered[j]-d-R)/R)
+#            f -= p_filtered[j]*dtheta*np.sin(theta)                #aproximando fndl = frdthetasin(theta) na integral
+#        f *= R
+#        for j in range(1, len(x_lower)):
+#            f += p_lower[j]*(x_lower[j]-x_lower[j-1])
+#    else:
+#        indices = np.isin(x_lower, x_contour)
+#        x_filtered = x_lower[indices]
+#        p_filtered = p_lower[indices]
+#        assert len(x_contour) == len(x_filtered)
+#        for j in range(1, len(x_filtered)):
+#            if x_contour[j] < d+R:
+#                dtheta = np.arccos((d+R-x_contour[j])/R) - np.arccos((d+R-x_contour[j-1])/R)
+#                theta = np.arccos((d+R-x_contour[j])/R)
+#            elif x_contour[j] > d+R and x_contour[j-1] < d+R:
+#                dtheta = np.pi - np.arccos((x_contour[j]-d-R)/R) - np.arccos((d+R-x_contour[j-1])/R)
+#                theta = np.arccos((x_contour[j]-d-R)/R)
+#            elif  x_contour[j-1] > d+R:
+#                dtheta = np.arccos((x_contour[j-1]-d-R)/R) - np.arccos((x_contour[j]-d-R)/R)
+#                theta = np.arccos((x_contour[j]-d-R)/R)
+#            f -= p_contour[j]*dtheta*np.sin(theta)                 #aproximando fndl = frdthetasin(theta) na integral
+#        f *= R
+#        for j in range(1, len(x_filtered)):
+#            f += p_filtered[j]*(x_filtered[j]-x_filtered[j-1])
+#    return f
 
 def mdf_temp(delta):
     temp = np.zeros((int(2*L/delta) + 1,int(2*L/delta) + 1))
@@ -349,19 +395,19 @@ def mdf_temp(delta):
 def main():
     # print(mdf_psi(0.4))
     #mdf_psi(0.045)
-    psi = mdf_psi(0.05)
-    u, v = mdf_vel(0.05, psi)
+    psi = mdf_psi(0.06)         #NÃO usar divisor de 0.15 ou 0.2 com os filtros implementados 
+    u, v = mdf_vel(0.06, psi)   #cálculo de F_lift fica errado
     p = mdf_pressure(u, v)
     #plot_psi(0.05, psi)
     print("U:", u)
     print("V", v)
     #plot_velfield(0.1, u, v)
     #plot_pressure(0.1, p)
-    x_upper, p_upper = mdf_p_upper_contour(0.05, p)
-    x_lower, p_lower = mdf_p_lower_contour(0.05, p)
+    x_upper, p_upper = mdf_p_upper_contour(0.06, p)
+    x_lower, p_lower = mdf_p_lower_contour(0.06, p)
     #assert len(x_lower) ==len(x_upper)
     plot_p_upper_contour(x_upper, p_upper)
-    #plot_p_lower_contour(x_lower, p_lower)
+    plot_p_lower_contour(x_lower, p_lower)
     #print(x_contour)s
     #print(p_contour)
     #print("X UPPER ", x_upper)
