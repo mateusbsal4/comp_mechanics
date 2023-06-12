@@ -391,78 +391,70 @@ def mdf_temp(delta, lamb, u, v):
                 elif isInsideCar(j*delta, i*delta, 1):      #dentro do carro
                     temp[i][j] = 25
                 elif isInsideCar((j+1)*delta, i*delta, 1) and isInsideCar(j*delta, (i-1)*delta, 1):       #contorno a direita e abaixo
-                    # n_center = n_columns - j -2                    #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
-                    # y_center = i*delta - h                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
-                    # bij = (delta - (np.sqrt(R**2-(y_center)**2)-n_center*delta))/delta
-                    # assert bij<1
-                    # n_center = n_columns - j -1 #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
-                    # y_center = (i-1)*delta - h   #altura do pto do contorno ate o centro
-                    # aij = (delta - (np.sqrt(R**2-(n_center*delta)**2)-y_center))/delta  #pitagoras
-                    # assert aij<1
-                    # temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/(aij*(aij+1)) + temp[i][j+1]/(bij*(bij+1)) + temp[i][j-1]/(bij + 1))/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1] + temp[i-1][j])/delta
-                    # temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(bij*delta**2) + 2*rho*cp*u[i][j]/delta
-                    pass
+                    n_center = abs(np.floor(n_columns/2) - j)  #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    y_center = abs(i*delta - h)                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
+                    bij = (delta - (n_center*delta - np.sqrt(R**2-(y_center)**2)))/delta  #pitagoras
+                    assert bij<1   
+                    n_center = abs(np.floor(n_columns/2) - j) #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    y_center = abs(i*delta - h)   #altura do pto do contorno ate o centro
+                    aij = (delta - (y_center - np.sqrt(R**2-(n_center*delta)**2)))/delta  #pitagoras
+                    assert aij<1
+                    temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/(aij*(aij+1)) + temp[i][j+1]/(bij*(bij+1)) + temp[i][j-1]/(bij + 1))/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1] + temp[i-1][j])/delta
+                    temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(bij*delta**2) + 2*rho*cp*u[i][j]/delta
                 elif isInsideCar((j-1)*delta, i*delta, 1) and isInsideCar(j*delta, (i-1)*delta, 1):       #contorno a esquerda e abaixo
-                    # n_center = n_columns - j -2                    #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
-                    # y_center = i*delta - h                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
-                    # bij = (delta - (np.sqrt(R**2-(y_center)**2)-n_center*delta))/delta
-                    # assert bij<1
-                    # n_center = n_columns - j -1 #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
-                    # y_center = (i-1)*delta - h   #altura do pto do contorno ate o centro
-                    # aij = (delta - (np.sqrt(R**2-(n_center*delta)**2)-y_center))/delta  #pitagoras
-                    # assert aij<1
-                    # temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/(aij*(aij+1)) + temp[i][j-1]/(bij*(bij+1)) + temp[i][j+1]/(bij + 1))/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
-                    # temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(bij*delta**2)
-                    pass
+                    n_center = abs(np.floor(n_columns/2) - j)  #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    y_center = abs(i*delta - h)                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
+                    bij = (delta - (n_center*delta - np.sqrt(R**2-(y_center)**2)))/delta  #pitagoras
+                    assert bij<1    
+                    n_center = abs(np.floor(n_columns/2) - j) #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    y_center = abs(i*delta - h)   #altura do pto do contorno ate o centro
+                    aij = (delta - (y_center - np.sqrt(R**2-(n_center*delta)**2)))/delta  #pitagoras
+                    assert aij<1
+                    temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/(aij*(aij+1)) + temp[i][j-1]/(bij*(bij+1)) + temp[i][j+1]/(bij + 1))/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
+                    temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(bij*delta**2)
                 elif isInsideCar(j*delta, (i-1)*delta, 1): #Contorno está abaixo
-                    # n_center = n_columns/2 - j - 1 #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
-                    # y_center = (i-1)*delta - h   #altura do pto do contorno ate o centro
-                    # aij = (delta - (np.sqrt(R**2-(n_center*delta)**2)-y_center))/delta  #pitagoras
-                    # print(aij)
-                    # assert aij<1
-                    # if v[i][j]>=0:
-                    #     temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1] + temp[i-1][j])/delta
-                    #     temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2) + 2*rho*cp*u[i][j]/delta
-                    # else:
-                    #     temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
-                    #     temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2)
-                    pass
+                    n_center = abs(np.floor(n_columns/2) - j) #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    y_center = abs(i*delta - h)   #altura do pto do contorno ate o centro
+                    aij = (delta - (y_center - np.sqrt(R**2-(n_center*delta)**2)))/delta  #pitagoras
+                    assert aij<1
+                    if v[i][j]>=0:
+                        temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1] + temp[i-1][j])/delta
+                        temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2) + 2*rho*cp*u[i][j]/delta
+                    else:
+                        temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
+                        temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2)
                 elif isInsideCar((j+1)*delta, i*delta, 1): #Contorno está a direita
-                    n_center = n_columns/2 - j -2                    #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
-                    y_center = i*delta - h                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
-                    bij = (delta - (np.sqrt(R**2-(y_center)**2)-n_center*delta))/delta  #pitagoras
+                    n_center = abs(np.floor(n_columns/2) - j)  #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    y_center = abs(i*delta - h)                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
+                    bij = (delta - (n_center*delta - np.sqrt(R**2-(y_center)**2)))/delta  #pitagoras
                     assert bij<1    
                     temp[i][j] = k*(2*temp[i][j-1]/(bij+1) + 2*temp[i][j+1]/bij*(bij+1) + temp[i+1][j] + temp[i-1][j])/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1] + temp[i-1][j])/delta
                     temp[i][j] /= 2*k/(bij*delta**2) + 2*k/(delta**2) + 2*rho*cp*u[i][j]/delta
                 elif isInsideCar((j-1)*delta, i*delta, 1): #Contorno está a esquerda
-                    # n_center = n_columns/2 - j -2                    #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
-                    # y_center = i*delta - h                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
-                    # bij = (delta - (np.sqrt(R**2-(y_center)**2)-n_center*delta))/delta  #pitagoras
-                    # assert bij<1    
-                    # temp[i][j] = k*(2*temp[i][j+1]/(bij+1) + 2*temp[i][j-1]/bij*(bij+1) + temp[i+1][j] + temp[i-1][j])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
-                    # temp[i][j] /= 2*k/(bij*delta**2) + 2*k/(delta**2)
-                    pass
+                    n_center = abs(np.floor(n_columns/2) - j)  #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    y_center = abs(i*delta - h)                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
+                    bij = (delta - (n_center*delta - np.sqrt(R**2-(y_center)**2)))/delta  #pitagoras
+                    assert bij<1  
+                    temp[i][j] = k*(2*temp[i][j+1]/(bij+1) + 2*temp[i][j-1]/bij*(bij+1) + temp[i+1][j] + temp[i-1][j])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
+                    temp[i][j] /= 2*k/(bij*delta**2) + 2*k/(delta**2)
                 elif isInsideCar(j*delta, (i+1)*delta, 1): #Contorno está acima
-                    # n_center = n_columns/2 - j - 1 #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
-                    # y_center = (i-1)*delta - h   #altura do pto do contorno ate o centro
-                    # aij = (delta - (np.sqrt(R**2-(n_center*delta)**2)-y_center))/delta  #pitagoras
-                    # print(aij)
-                    # assert aij<1
-                    # if v[i][j]>=0:
-                    #     temp[i][j] = k*(2*temp[i-1][j]/(aij+1) + 2*temp[i+1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1] + temp[i-1][j])/delta
-                    #     temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2) + 2*rho*cp*u[i][j]/delta
-                    # else:
-                    #     temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
-                    #     temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2)
-                    pass
+                    n_center = abs(np.floor(n_columns/2) - j) #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    y_center = abs(i*delta - h)   #altura do pto do contorno ate o centro
+                    aij = (delta - (y_center - np.sqrt(R**2-(n_center*delta)**2)))/delta  #pitagoras
+                    assert aij<1
+                    if v[i][j]>=0:
+                        temp[i][j] = k*(2*temp[i-1][j]/(aij+1) + 2*temp[i+1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1] + temp[i-1][j])/delta
+                        temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2) + 2*rho*cp*u[i][j]/delta
+                    else:
+                        temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
+                        temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2)
                 else: # Parte central do dominio
                     if v[i][j] >= 0:
                         temp[i][j] = k*(temp[i][j+1] + temp[i][j-1] + temp[i-1][j] + temp[i+1][j])/(delta**2) + rho*cp*u[i][j]*(temp[i-1][j] + temp[i][j-1])/delta
                         temp[i][j] /= 4*k/(delta**2) + 2*rho*cp*u[i][j]/delta
-                    # else:
-                    #     temp[i][j] = k*(temp[i][j+1] + temp[i][j-1] + temp[i-1][j] + temp[i+1][j])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
-                    #     temp[i][j] /= 4*k/(delta**2)
-                    pass
+                    else:
+                        temp[i][j] = k*(temp[i][j+1] + temp[i][j-1] + temp[i-1][j] + temp[i+1][j])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
+                        temp[i][j] /= 4*k/(delta**2)
                 temp[i][j] = lamb*temp[i][j]+(1-lamb)*temp_old[i][j]
         max_error = np.max(np.abs((temp-temp_old)))
         print("T", temp)
@@ -473,7 +465,7 @@ def mdf_temp(delta, lamb, u, v):
 def main():
     # print(mdf_psi(0.4))
     #mdf_psi(0.045)
-    psi = mdf_psi(L/8, 1.85)         #NÃO usar divisor de 0.15 ou 0.2 com os filtros implementados 
+    psi = mdf_psi(L/8, 1.15)         #NÃO usar divisor de 0.15 ou 0.2 com os filtros implementados 
     u, v = mdf_vel(L/8, psi)   #cálculo de F_lift fica errado
     temp = mdf_temp(L/8, 1.15, u, v)
     # p = mdf_pressure(u, v)
