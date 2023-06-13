@@ -51,18 +51,23 @@ def F(t, Y, k1, k2, c1, c2, V):
   theta = Y[1]
   u = Y[2]
   v = Y[3]
+  # Derivada primeira de x
   K[0] = u 
+  # Derivada primeira de theta
   K[1] = v 
+  # Derivada segunda de x
   K[2] = (-(k1+k2)*x+(k1*a-k2*b)*theta-(c1+c2)*u+(c1*a-c2*b)*v+k1*d1(t, V)+k2*d2(t, V)+c1*d1_dot(t, V)+c2*d2_dot(t, V)+Fn*np.sin(w_e*t))/M     
+  # Derivada segunda de theta
   K[3] = ((k1*a-k2*b)*x-(k1*a**2+k2*b**2)*theta+(c1*a-c2*b)*u-(c1*a**2+c2*b**2)*v-k1*a*d1(t, V)+k2*b*d2(t, V)-c1*a*d1_dot(t, V)+c2*b*d2_dot(t, V)-Fn*(e*np.sin(w_e*t)+f*np.cos(w_e*t)))/Ic
   return K
 
 @njit
-def rk4_solver(Y0, t0, tf, h, k, c, V):
-    iterations  = int(np.floor((tf-t0)/h))
+def rk4_solver(Y0, t0, tf, h, k, c, V): 
+    iterations  = int(np.floor((tf-t0)/h)) # Discretiza o tempo em intervalos de tamanho h
     Y = Y0
-    for i in range(iterations):
+    for i in range(iterations): # Itera cada intervalo de tempo
         t_i = t0 + h*i
+        # Aplicacao do método de Runge-Kutta de quarta ordem
         K1 = F(t_i, Y, k, k, c, c, V)
         K2 = F(t_i + 0.5*h, Y + 0.5*h*K1, k, k, c, c, V)
         K3 = F(t_i + 0.5*h, Y + 0.5*h*K2, k, k, c, c, V)
@@ -76,17 +81,20 @@ def rk4_plotter(h, V, k1, k2, c1, c2, scale_x, scale_theta, scale_xdot, scale_th
   Y = np.zeros((n,4))
   Y_dd = np.zeros((n, 2))
   for i in range(n):
-    Y[i] = rk4_solver(Y0, t0, t_sampled[i], h, k1, c1, V) 
+    Y[i] = rk4_solver(Y0, t0, t_sampled[i], h, k1, c1, V) # Roda Runge-kutta para cada ponto 
+    # Salva a solução obtida em cada uma das variáveis
     x = Y[i][0]
     theta = Y[i][1]
     u = Y[i][2]
     v = Y[i][3]
+    # Obtem derivada segunda
     Y_dd[i] = np.array([((-(k1+k2)*x+(k1*a-k2*b)*theta-(c1+c2)*u+(c1*a-c2*b)*v+k1*d1(t_sampled[i], V)+k2*d2(t_sampled[i], V)+c1*d1_dot(t_sampled[i], V)+c2*d2_dot(t_sampled[i], V)+Fn*np.sin(w_e*t_sampled[i]))/M), (((k1*a-k2*b)*x-(k1*a**2+k2*b**2)*theta+(c1*a-c2*b)*u-(c1*a**2+c2*b**2)*v-k1*a*d1(t_sampled[i], V)+k2*b*d2(t_sampled[i], V)-c1*a*d1_dot(t_sampled[i], V)+c2*b*d2_dot(t_sampled[i], V)-Fn*(e*np.sin(w_e*t_sampled[i])+f*np.cos(w_e*t_sampled[i])))/Ic)])
   if (np.isnan(Y).any()):
      print("Overflow no vetor resultante")
   Z = np.transpose(Y)
   Y_dd = np.transpose(Y_dd)
   fig, ax = plt.subplots(figsize=(10,10))
+  # Plota os pontos para essa iteração do runge-kutta
   ax.plot(t_sampled, scale_x*Z[0], label=r'$x(t) \times$' + "{}".format(scale_x))  
   ax.plot(t_sampled, scale_xdot*Z[2], label=r'$\dot{x}(t) \times$' + "{}".format(scale_xdot))  
   ax.plot(t_sampled, scale_xddot*Y_dd[0], label=r'$\ddot{x}(t) \times$' + "{}".format(scale_xddot))  
@@ -107,6 +115,7 @@ def rk4_plotter(h, V, k1, k2, c1, c2, scale_x, scale_theta, scale_xdot, scale_th
   plt.show()
 
 def main():
+    # Variáveis para cada alternativa
     h_s = 0.002    #small
     h_m = 0.004    #medium
     h_l = 0.02     #large
