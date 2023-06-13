@@ -66,14 +66,9 @@ def plot_pressure(delta, graph): #plota a função de corrente
 
 
 def plot_p_upper_contour(sorted_x_contour, sorted_p_contour):
-    #print("X_contour", x_contour)
-    #print("P_contour", p_contour)
     min_index = np.argmin(sorted_p_contour)
     min_x = sorted_x_contour[min_index]
     min_p = sorted_p_contour[min_index]
-    #plt.scatter(x_contour, p_contour)
-    print("sortedX_contour", sorted_x_contour)
-    print("sortedP_contour", sorted_p_contour)
     plt.plot(sorted_x_contour, sorted_p_contour)
     plt.xlabel('x [m]')
     plt.ylabel('Pressão [Pa]')
@@ -84,8 +79,6 @@ def plot_p_upper_contour(sorted_x_contour, sorted_p_contour):
     #plt.show()
 
 def plot_p_lower_contour(x_contour, p_contour):
-    print("sortedX_contour", x_contour)
-    print("sortedP_contour", p_contour)
     plt.plot(x_contour, p_contour)
     plt.xlabel('x [m]')
     plt.ylabel('Pressão [Pa]')
@@ -108,12 +101,9 @@ def mdf_psi(delta, lamb):
     n_columns = int(L/delta)+1 
     assert n_lines%2 != 0         #escolher n.o de linhas ímpar devido a simetria   
     psi = np.full((n_lines, n_columns), 0, dtype=float)        #precisa estar entre 0 e 1
-    print(psi)
     max_error = 1       #inicialmente psi e psi velho são iguais
     while(max_error>epsilon):
         psi_old = np.copy(psi)
-        #print("Psi old antes", psi_old)
-        #for i in range(psi.shape[0] - 1, -1, -1):
         for i in range(psi.shape[0]): # linhas, iteração de baixo para cima
             for j in range(psi.shape[1]): # colunas, iteração da esquerda para a direita
                 if (i == psi.shape[0]-1 and j == 0): # canto superior
@@ -169,9 +159,6 @@ def mdf_psi(delta, lamb):
                         psi[i][j] = 0.25*(psi[i+1][j]+psi[i-1][j]+psi[i][j+1]+psi[i][j-1])
                 psi[i][j] = lamb*psi[i][j]+(1-lamb)*psi_old[i][j]
         max_error = np.max(np.abs((psi-psi_old)))
-        print("PSI", psi)
-        print("psi old", psi_old)
-        print("Max error ", max_error)
     return np.concatenate((psi, np.flip(psi, 1)[:, 1:]), axis=1)
 
 
@@ -235,14 +222,10 @@ def mdf_p_upper_contour(delta, p):
     x_contour = []   
     for i in range(n_rows):
         for j in range(n_cols):
-            #if (not isInsideCar(j*delta, i*delta, 1) and (isInsideCar(j*delta, (i-1)*delta) or isInsideCar((j+1)*delta, i*delta) or isInsideCar((j-1)*delta, i*delta))):
             if (not isInsideCar(j*delta, i*delta, 1) and (isInsideCar(j*delta, (i-1)*delta) or isInsideCar((j+1)*delta, i*delta) or isInsideCar((j-1)*delta, i*delta))) or (((j*delta)-d-L/2)**2+(i*delta-h)**2==R**2 and i*delta > h):
-            #if (not isInsideCar(j*delta, i*delta, 1) and (isInsideCar(j*delta, (i-1)*delta) or isInsideCar((j+1)*delta, i*delta) or isInsideCar((j-1)*delta, i*delta))) or (((j*delta)-d-L/2)**2+(i*delta-h)**2==R**2 and i*delta > h):
-                #print("i e j que entraram: ", i, j)
                 inContour[i][j] = 1
                 p_contour.append(p[i][j])
                 x_contour.append(j*delta)
-    #print("INCONTOUR UPPER", inContour)
     x_contour = np.array(x_contour)
     p_contour = np.array(p_contour)    
     sorted_indices = np.argsort(x_contour)
@@ -257,13 +240,10 @@ def mdf_p_lower_contour(delta, p):
     x_contour = []   
     for i in range(n_rows):
         for j in range(n_cols):
-            #if (not isInsideCar(j*delta, i*delta, 1) and isInsideCar(j*delta, (i+1)*delta, 1)):
-            #if ((j*delta >= d and j*delta <= d+L) and i*delta==h) or (not isInsideCar(j*delta, i*delta, 1) and isInsideCar(j*delta, (i+1)*delta)):
             if not isInsideCar(j*delta, i*delta, 1) and isInsideCar(j*delta, (i+1)*delta):
                 inContour[i][j] = 1
                 p_contour.append(p[i][j])
                 x_contour.append(j*delta)
-    #print("INCONTOUR LOWER", inContour)
     x_contour = np.array(x_contour)
     p_contour = np.array(p_contour)  
     return x_contour, p_contour
@@ -314,50 +294,6 @@ def calculate_lift_force(x_upper, p_upper, x_lower, p_lower):
             f += p_filtered[j]*(x_filtered[j]-x_filtered[j-1])
     return f
 
-#def calculate_lift_force(x_contour, p_contour, x_lower, p_lower):
-#    f = 0
-#    print("len(x_contour)", len(x_contour))
-#    print("len(x_lower)", len(x_lower))
-#    if len(x_contour) > len(x_lower):
-#        indices = np.isin(x_contour, x_lower)
-#        x_filtered = x_contour[indices]
-#        p_filtered = p_contour[indices]
-#        assert len(x_filtered) == len(x_lower)
-#        for j in range(1, len(x_filtered)):
-#            if x_filtered[j] < d+R:
-#                dtheta = np.arccos((d+R-x_filtered[j])/R) - np.arccos((d+R-x_filtered[j-1])/R)
-#                theta = np.arccos((d+R-x_filtered[j])/R)
-#            elif x_filtered[j] > d+R and x_filtered[j-1] < d+R:
-#                dtheta = np.pi - np.arccos((x_filtered[j]-d-R)/R) - np.arccos((d+R-x_filtered[j-1])/R)
-#                theta = np.arccos((x_filtered[j]-d-R)/R)
-#            elif  x_filtered[j-1] > d+R:
-#                dtheta = np.arccos((x_filtered[j-1]-d-R)/R) - np.arccos((x_filtered[j]-d-R)/R)
-#                theta = np.arccos((x_filtered[j]-d-R)/R)
-#            f -= p_filtered[j]*dtheta*np.sin(theta)                #aproximando fndl = frdthetasin(theta) na integral
-#        f *= R
-#        for j in range(1, len(x_lower)):
-#            f += p_lower[j]*(x_lower[j]-x_lower[j-1])
-#    else:
-#        indices = np.isin(x_lower, x_contour)
-#        x_filtered = x_lower[indices]
-#        p_filtered = p_lower[indices]
-#        assert len(x_contour) == len(x_filtered)
-#        for j in range(1, len(x_filtered)):
-#            if x_contour[j] < d+R:
-#                dtheta = np.arccos((d+R-x_contour[j])/R) - np.arccos((d+R-x_contour[j-1])/R)
-#                theta = np.arccos((d+R-x_contour[j])/R)
-#            elif x_contour[j] > d+R and x_contour[j-1] < d+R:
-#                dtheta = np.pi - np.arccos((x_contour[j]-d-R)/R) - np.arccos((d+R-x_contour[j-1])/R)
-#                theta = np.arccos((x_contour[j]-d-R)/R)
-#            elif  x_contour[j-1] > d+R:
-#                dtheta = np.arccos((x_contour[j-1]-d-R)/R) - np.arccos((x_contour[j]-d-R)/R)
-#                theta = np.arccos((x_contour[j]-d-R)/R)
-#            f -= p_contour[j]*dtheta*np.sin(theta)                 #aproximando fndl = frdthetasin(theta) na integral
-#        f *= R
-#        for j in range(1, len(x_filtered)):
-#            f += p_filtered[j]*(x_filtered[j]-x_filtered[j-1])
-#    return f
-
 def mdf_temp(delta, lamb, u, v):
     n_lines = int(2*L/delta)+1        
     n_columns = n_lines
@@ -402,16 +338,17 @@ def mdf_temp(delta, lamb, u, v):
                     temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/(aij*(aij+1)) + temp[i][j+1]/(bij*(bij+1)) + temp[i][j-1]/(bij + 1))/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1] + temp[i-1][j])/delta
                     temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(bij*delta**2) + 2*rho*cp*u[i][j]/delta
                 elif isInsideCar((j-1)*delta, i*delta, 1) and isInsideCar(j*delta, (i-1)*delta, 1):       #contorno a esquerda e abaixo
-                    n_center = abs(np.floor(n_columns/2) - j)  #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
-                    y_center = abs(i*delta - h)                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
-                    bij = (delta - (n_center*delta - np.sqrt(R**2-(y_center)**2)))/delta  #pitagoras
-                    assert bij<1    
-                    n_center = abs(np.floor(n_columns/2) - j) #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
-                    y_center = abs(i*delta - h)   #altura do pto do contorno ate o centro
-                    aij = (delta - (y_center - np.sqrt(R**2-(n_center*delta)**2)))/delta  #pitagoras
-                    assert aij<1
-                    temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/(aij*(aij+1)) + temp[i][j-1]/(bij*(bij+1)) + temp[i][j+1]/(bij + 1))/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
-                    temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(bij*delta**2)
+                    # n_center = abs(np.floor(n_columns/2) - j)  #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    # y_center = abs(i*delta - h)                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
+                    # bij = (delta - (n_center*delta - np.sqrt(R**2-(y_center)**2)))/delta  #pitagoras
+                    # assert bij<1    
+                    # n_center = abs(np.floor(n_columns/2) - j) #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    # y_center = abs(i*delta - h)   #altura do pto do contorno ate o centro
+                    # aij = (delta - (y_center - np.sqrt(R**2-(n_center*delta)**2)))/delta  #pitagoras
+                    # assert aij<1
+                    # temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/(aij*(aij+1)) + temp[i][j-1]/(bij*(bij+1)) + temp[i][j+1]/(bij + 1))/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
+                    # temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(bij*delta**2)
+                    pass
                 elif isInsideCar(j*delta, (i-1)*delta, 1): #Contorno está abaixo
                     n_center = abs(np.floor(n_columns/2) - j) #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
                     y_center = abs(i*delta - h)   #altura do pto do contorno ate o centro
@@ -420,9 +357,9 @@ def mdf_temp(delta, lamb, u, v):
                     if v[i][j]>=0:
                         temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1] + temp[i-1][j])/delta
                         temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2) + 2*rho*cp*u[i][j]/delta
-                    else:
-                        temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
-                        temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2)
+                    # else:
+                    #     temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
+                    #     temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2)
                 elif isInsideCar((j+1)*delta, i*delta, 1): #Contorno está a direita
                     n_center = abs(np.floor(n_columns/2) - j)  #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
                     y_center = abs(i*delta - h)                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
@@ -431,12 +368,13 @@ def mdf_temp(delta, lamb, u, v):
                     temp[i][j] = k*(2*temp[i][j-1]/(bij+1) + 2*temp[i][j+1]/bij*(bij+1) + temp[i+1][j] + temp[i-1][j])/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1] + temp[i-1][j])/delta
                     temp[i][j] /= 2*k/(bij*delta**2) + 2*k/(delta**2) + 2*rho*cp*u[i][j]/delta
                 elif isInsideCar((j-1)*delta, i*delta, 1): #Contorno está a esquerda
-                    n_center = abs(np.floor(n_columns/2) - j)  #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
-                    y_center = abs(i*delta - h)                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
-                    bij = (delta - (n_center*delta - np.sqrt(R**2-(y_center)**2)))/delta  #pitagoras
-                    assert bij<1  
-                    temp[i][j] = k*(2*temp[i][j+1]/(bij+1) + 2*temp[i][j-1]/bij*(bij+1) + temp[i+1][j] + temp[i-1][j])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
-                    temp[i][j] /= 2*k/(bij*delta**2) + 2*k/(delta**2)
+                    # n_center = abs(np.floor(n_columns/2) - j)  #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
+                    # y_center = abs(i*delta - h)                  #altura do pto do contorno (e do pto a sua esquerda) ate o centro
+                    # bij = (delta - (n_center*delta - np.sqrt(R**2-(y_center)**2)))/delta  #pitagoras
+                    # assert bij<1  
+                    # temp[i][j] = k*(2*temp[i][j+1]/(bij+1) + 2*temp[i][j-1]/bij*(bij+1) + temp[i+1][j] + temp[i-1][j])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
+                    # temp[i][j] /= 2*k/(bij*delta**2) + 2*k/(delta**2)
+                    pass
                 elif isInsideCar(j*delta, (i+1)*delta, 1): #Contorno está acima
                     n_center = abs(np.floor(n_columns/2) - j) #numero de deltas (inteiros) dentro do circulo na direção horizontal até o centro
                     y_center = abs(i*delta - h)   #altura do pto do contorno ate o centro
@@ -445,54 +383,103 @@ def mdf_temp(delta, lamb, u, v):
                     if v[i][j]>=0:
                         temp[i][j] = k*(2*temp[i-1][j]/(aij+1) + 2*temp[i+1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) + rho*cp*u[i][j]*(temp[i][j-1] + temp[i-1][j])/delta
                         temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2) + 2*rho*cp*u[i][j]/delta
-                    else:
-                        temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
-                        temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2)
+                    # else:
+                    #     temp[i][j] = k*(2*temp[i+1][j]/(aij+1) + 2*temp[i-1][j]/aij*(aij+1) + temp[i][j+1] + temp[i][j-1])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
+                    #     temp[i][j] /= 2*k/(aij*delta**2) + 2*k/(delta**2)
                 else: # Parte central do dominio
                     if v[i][j] >= 0:
                         temp[i][j] = k*(temp[i][j+1] + temp[i][j-1] + temp[i-1][j] + temp[i+1][j])/(delta**2) + rho*cp*u[i][j]*(temp[i-1][j] + temp[i][j-1])/delta
                         temp[i][j] /= 4*k/(delta**2) + 2*rho*cp*u[i][j]/delta
-                    else:
-                        temp[i][j] = k*(temp[i][j+1] + temp[i][j-1] + temp[i-1][j] + temp[i+1][j])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
-                        temp[i][j] /= 4*k/(delta**2)
+                    # else:
+                    #     temp[i][j] = k*(temp[i][j+1] + temp[i][j-1] + temp[i-1][j] + temp[i+1][j])/(delta**2) - rho*cp*u[i][j]*(temp[i+1][j] - temp[i][j-1])/delta
+                    #     temp[i][j] /= 4*k/(delta**2)
                 temp[i][j] = lamb*temp[i][j]+(1-lamb)*temp_old[i][j]
         max_error = np.max(np.abs((temp-temp_old)))
-        print("T", temp)
-        print("T old", temp_old)
-        print("Max error ", max_error)
     return temp
 
 def main():
-    # print(mdf_psi(0.4))
-    #mdf_psi(0.045)
-    psi = mdf_psi(L/8, 1.15)         #NÃO usar divisor de 0.15 ou 0.2 com os filtros implementados 
-    u, v = mdf_vel(L/8, psi)   #cálculo de F_lift fica errado
-    temp = mdf_temp(L/8, 1.15, u, v)
-    # p = mdf_pressure(u, v)
-    print(temp)
-    plot_temp(L/8, temp)
-    # print("U:", u)
-    # print("V", v)
-    plot_velfield(L/8, u, v)
-    #plot_pressure(0.1, p)
-    # x_upper, p_upper = mdf_p_upper_contour(0.06, p)
-    # x_lower, p_lower = mdf_p_lower_contour(0.06, p)
-    #assert len(x_lower) ==len(x_upper)
-    # plot_p_upper_contour(x_upper, p_upper)
-    # plot_p_lower_contour(x_lower, p_lower)
-    #print(x_contour)s
-    #print(p_contour)
-    #print("X UPPER ", x_upper)
-    #print("X LOWER", x_lower)
-    # F = calculate_lift_force(x_upper, p_upper, x_lower, p_lower)
-    # print("F", F)
-    plt.show()
-    #print(F)
-    #plot_p_contour(x_contour, p_contour)
+    print("PARTE 1")
+    print("a) Plotar a função de corrente PSI do escoamento")
+    psi = mdf_psi(0.1, 1.85)
+    plot_psi(0.1, psi)
+    print("b) Plotar os vetores de velocidade absoluta do escoamento")
+    u, v = mdf_vel(0.1, psi)
+    plot_velfield(0.1, u, v)
+    print("c) Plotar a pressão no domínio")
+    p = mdf_pressure(u, v)
+    plot_pressure(0.1, p)
+    print("d) Plotar a pressão ao longo da carroceria, explicitando seu valor mínimo")
+    x_upper, p_upper = mdf_p_upper_contour(0.1, p)
+    x_lower, p_lower = mdf_p_lower_contour(0.1, p)
+    plot_p_upper_contour(x_upper, p_upper)
+    plot_p_lower_contour(x_lower, p_lower)
+    print("e) Calcular a força vertical resultante que atua no veículo")
+    F = calculate_lift_force(x_upper, p_upper, x_lower, p_lower)
+    print("F = ", F)
 
+    print("PARTE 2")
+    print("a) A distribuição de temperatura no ar (em °C)")
+    psi = mdf_psi(L/8, 1.15)         
+    u, v = mdf_vel(L/8, psi)  
+    temp = mdf_temp(L/8, 1.15, u, v)
+    plot_temp(L/8, temp)
+
+    print("PARTE 3")
+    h = 0.10
+    psi = mdf_psi(0.1, 1.85)
+    u, v = mdf_vel(0.1, psi)
+    p = mdf_pressure(u, v)
+    x_upper, p_upper = mdf_p_upper_contour(0.1, p)
+    x_lower, p_lower = mdf_p_lower_contour(0.1, p)
+    F = calculate_lift_force(x_upper, p_upper, x_lower, p_lower)
+    print("h = 0.10m; F = ", F)
+
+    h = 0.05
+    psi = mdf_psi(0.1, 1.85)
+    u, v = mdf_vel(0.1, psi)
+    p = mdf_pressure(u, v)
+    x_upper, p_upper = mdf_p_upper_contour(0.1, p)
+    x_lower, p_lower = mdf_p_lower_contour(0.1, p)
+    F = calculate_lift_force(x_upper, p_upper, x_lower, p_lower)
+    print("h = 0.05m; F = ", F)
+
+    h = 0.20
+    psi = mdf_psi(0.1, 1.85)
+    u, v = mdf_vel(0.1, psi)
+    p = mdf_pressure(u, v)
+    x_upper, p_upper = mdf_p_upper_contour(0.1, p)
+    x_lower, p_lower = mdf_p_lower_contour(0.1, p)
+    F = calculate_lift_force(x_upper, p_upper, x_lower, p_lower)
+    print("h = 0.20m; F = ", F)
+
+    h = 0.025
+    psi = mdf_psi(0.1, 1.85)
+    u, v = mdf_vel(0.1, psi)
+    p = mdf_pressure(u, v)
+    x_upper, p_upper = mdf_p_upper_contour(0.1, p)
+    x_lower, p_lower = mdf_p_lower_contour(0.1, p)
+    F = calculate_lift_force(x_upper, p_upper, x_lower, p_lower)
+    print("h = 0.025m; F = ", F)
+
+    h = 0.15
+
+    V = 75/3.6
+    psi = mdf_psi(0.1, 1.85)
+    u, v = mdf_vel(0.1, psi)
+    p = mdf_pressure(u, v)
+    x_upper, p_upper = mdf_p_upper_contour(0.1, p)
+    x_lower, p_lower = mdf_p_lower_contour(0.1, p)
+    F = calculate_lift_force(x_upper, p_upper, x_lower, p_lower)
+    print("V = 75km/h; F = ", F)
+
+    V = 140/3.6
+    psi = mdf_psi(0.1, 1.85)
+    u, v = mdf_vel(0.1, psi)
+    p = mdf_pressure(u, v)
+    x_upper, p_upper = mdf_p_upper_contour(0.1, p)
+    x_lower, p_lower = mdf_p_lower_contour(0.1, p)
+    F = calculate_lift_force(x_upper, p_upper, x_lower, p_lower)
+    print("V = 140km/h; F = ", F)
 
 if __name__ == "__main__":
-    import time
-    start_time = time.time()
     main()
-    print("--- %s seconds ---" % (time.time() - start_time))
