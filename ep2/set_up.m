@@ -301,6 +301,7 @@ A = Mgm/Kgm;
 val = diag(val)(1:6, 1);
   ke = T'*ke*T;
   me = T'*me*T;
-endfor
+
+
 
         
